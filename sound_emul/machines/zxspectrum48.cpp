@@ -14,8 +14,7 @@ using std::vector;
 using std::ifstream;
 using std::cout;
 
-Virtual_ZX48::Virtual_ZX48() : cpu(&memory, Z80Type::NMOS) {
-    memory.fill(0);
+Virtual_ZX48::Virtual_ZX48() : cpu((memory.fill(0), &memory), Z80Type::NMOS) {
     cpu.inputPortsShort[0xfe] = 0xff;   // return no_key_down on keyboard checks
 
     ifstream ROMFILE("resources/roms/zxspectrum48.rom", ios::binary);

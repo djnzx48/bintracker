@@ -39,7 +39,7 @@ if(APPLE)
 	find_library(LIBSAMPLERATE_LIBRARIES NAMES samplerate libsamplerate HINTS ${PC_LIBSAMPLERATE_LIBDIR} ${PC_LIBSAMPLERATE_LIBRARY_DIRS})
 else()
     find_path(LIBSAMPLERATE_INCLUDE_DIR NAMES samplerate.h)
-    find_library(LIBSAMPLERATE_LIBRARIES NAMES samplerate libsamplerate)
+    find_library(LIBSAMPLERATE_LIBRARIES NAMES samplerate libsamplerate libsamplerate-0)
 endif()
 find_package_handle_standard_args(LIBSAMPLERATE REQUIRED_VARS LIBSAMPLERATE_INCLUDE_DIR LIBSAMPLERATE_LIBRARIES)
 mark_as_advanced(LIBSAMPLERATE_INCLUDE_DIR LIBSAMPLERATE_LIBRARIES)
@@ -85,6 +85,18 @@ if(APPLE)
         liballegro_audio.dylib)
     set(PUGIXML_LIB "${PUGIXML_LIBRARIES}")
     set(LIBSAMPLERATE_LIB "${LIBSAMPLERATE_LIBRARIES}")
+elseif(WIN32)
+    if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        set(DEBUG_SUFFIX "-debug")
+    else()
+        set(DEBUG_SUFFIX "")
+    endif()
+
+    set(AL_LIBS "allegro${DEBUG_SUFFIX}.lib" "allegro_main${DEBUG_SUFFIX}.lib" "allegro_image${DEBUG_SUFFIX}.lib"
+        "allegro_font${DEBUG_SUFFIX}.lib" "allegro_primitives${DEBUG_SUFFIX}.lib" "allegro_dialog${DEBUG_SUFFIX}.lib"
+        "allegro_audio${DEBUG_SUFFIX}.lib")
+    set(PUGIXML_LIB "${PUGIXML_LIBRARIES}")
+    set(LIBSAMPLERATE_LIB "${LIBSAMPLERATE_LIBRARIES}")
 else()
     set(AL_LIBS liballegro.so liballegro_main.so liballegro_image.so
         liballegro_font.so liballegro_primitives.so liballegro_dialog.so
@@ -96,24 +108,26 @@ endif()
 
 
 # Set flags. Say no to default CMAKE_CXX_FLAGS!
-set(CMAKE_CXX_FLAGS "-std=c++11 -ffast-math")
-if(NOT MINGW)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-endif()
-set(CMAKE_CXX_FLAGS_DEBUG "-g -pedantic -Wno-c++98-compat\
- -Wno-c++98-compat-pedantic -Wno-reserved-id-macro -Wno-header-hygiene\
- -Wno-padded -Wno-ignored-qualifiers -Wno-weak-vtables -Wno-global-constructors\
- -Wno-exit-time-destructors -Wno-double-promotion -Wno-conversion\
- -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
-if(NOT APPLE)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s")
-endif()
-CHECK_CXX_COMPILER_FLAG(-Weverything HAVE_WEVERYTHING)
-if (HAVE_WEVERYTHING)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Weverything")
-else()
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
+if(NOT WIN32)
+    set(CMAKE_CXX_FLAGS "-std=c++11 -ffast-math")
+    if(NOT MINGW)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    endif()
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -pedantic -Wno-c++98-compat\
+    -Wno-c++98-compat-pedantic -Wno-reserved-id-macro -Wno-header-hygiene\
+    -Wno-padded -Wno-ignored-qualifiers -Wno-weak-vtables -Wno-global-constructors\
+    -Wno-exit-time-destructors -Wno-double-promotion -Wno-conversion\
+    -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+    if(NOT APPLE)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s")
+    endif()
+    CHECK_CXX_COMPILER_FLAG(-Weverything HAVE_WEVERYTHING)
+    if (HAVE_WEVERYTHING)
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Weverything")
+    else()
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
+    endif()
 endif()
 
 # check for libc++

@@ -1,6 +1,7 @@
 _BACKUP/
 allegro5/
 libsamplerate/
+build/
 obj/
 _RELEASE/
 docs/data/raw
