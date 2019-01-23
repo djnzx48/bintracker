@@ -8,6 +8,7 @@
 #include <allegro5/allegro_audio.h>
 #include "machines/vm.h"
 #include "machines/zxspectrum48.h"
+#include "machines/zxspectrum128.h"
 #include "../gui/worktune.h"
 
 
@@ -45,6 +46,7 @@ class Sound_Emul {
 
     Work_Tune *currentTune;
     Virtual_ZX48 zx48;
+    Virtual_ZX128 zx128;
 };
 
 #endif  // SOUND_EMUL_SOUND_EMUL_H_

@@ -76,6 +76,7 @@ set(SOURCES data_as/data_as.cpp
     libmdal/blocks.cpp libmdal/command.cpp libmdal/config.cpp libmdal/field.cpp
     libmdal/module.cpp libmdal/sequence.cpp
     sound_emul/sound_emul.cpp sound_emul/machines/zxspectrum48.cpp
+    sound_emul/machines/zxspectrum128.cpp
     sound_emul/machines/CPU/z80.cpp sound_emul/machines/CPU/z80instructions.cpp
     bintracker.cpp helper_func.cpp)
 

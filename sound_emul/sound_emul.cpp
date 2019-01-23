@@ -74,6 +74,10 @@ void Sound_Emul::setup_vm() {
         vm = &zx48;
         vm->init(currentTune);
         startAddress = 0x8000;
+    } else if (currentTune->config.targetPlatform == "zxspectrum128") {
+        vm = &zx128;
+        vm->init(currentTune);
+        startAddress = 0x8000;
     } else {
         throw(string("Unknown machine configuration, failed to initialize sound emulation."));
     }
@@ -86,7 +90,7 @@ void Sound_Emul::update_audio() {
         aBuffer = al_get_audio_stream_fragment(audioStream);
 
         if (aBuffer != nullptr) {
-#if __GNUC__ < 5
+#if __GNUC__ < 5 && !WIN32
             audioBuffer.str("");
 #else
             // clear stream, c++11 style
