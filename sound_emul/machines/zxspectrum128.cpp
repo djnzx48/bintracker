@@ -14,19 +14,41 @@ using std::vector;
 using std::ifstream;
 using std::cout;
 
-Virtual_ZX128::Virtual_ZX128() : cpu((memory.fill(0), &memory), Z80Type::NMOS) {
+Virtual_ZX128::Virtual_ZX128()
+    :memory {Z80Memory::Configuration::Spectrum128}, cpu {&memory, Z80Type::NMOS}
+{
     cpu.inputPortsShort[0xfe] = 0xff;   // return no_key_down on keyboard checks
 
     ifstream ROMFILE("resources/roms/zxspectrum128.rom", ios::binary);
     if (ROMFILE.is_open()) {
-        char buffer[0x4000];
+        std::array<uint8_t, 0x4000> rom1;
+        std::array<uint8_t, 0x4000> rom2;
         ROMFILE.seekg(0, ios::beg);
-        ROMFILE.read(buffer, 0x4000);
-        for (int i = 0; i < 0x4000; i++) memory[i] = buffer[i] & 0xff;
+        ROMFILE.read(reinterpret_cast<char*>(rom1.data()), 0x4000);
+        ROMFILE.read(reinterpret_cast<char*>(rom2.data()), 0x4000);
+
+        memory.bank_switch(0b00000);
+        memory.fill_bank(0, rom1);
+
+        memory.bank_switch(0b10000);
+        memory.fill_bank(1, rom2);
+
+        memory.bank_switch(0b00000);
     } else {
         cout << "Warning: Could not load zxspectrum128.rom\n";
-        vector<unsigned> randomData = generate_random_data(0x4000);
-        for (int i = 0; i < 0x4000; i++) memory[i] = randomData[i] & 0xff;
+        std::array<uint8_t, 0x4000> rom1;
+        std::array<uint8_t, 0x4000> rom2;
+
+        generate_random_data(rom1.begin(), rom1.end());
+        generate_random_data(rom2.begin(), rom2.end());
+
+        memory.bank_switch(0b00000);
+        memory.fill_bank(0, rom1);
+
+        memory.bank_switch(0b10000);
+        memory.fill_bank(1, rom2);
+
+        memory.bank_switch(0b00000);
     }
 
     prgmIsInitialized = false;
@@ -67,13 +89,13 @@ void Virtual_ZX128::set_breakpoints(const int64_t &initBP, const int64_t &exitBP
 
 
 void Virtual_ZX128::load_binary(char *code, const int &codeSize, const int &startAddress) {
-    for (int i = 0; i < codeSize; i++) memory[i + startAddress] = code[i] & 0xff;
+    for (int i = 0; i < codeSize; i++) memory.write(i + startAddress, code[i] & 0xff);
     prgmIsInitialized = false;
 }
 
 
 void Virtual_ZX128::load_raw_data(const vector<char> &data, const int &orgAddress) {
-    for (int i = 0; static_cast<unsigned>(i) < data.size(); i++) memory[i + orgAddress] = data[i] & 0xff;
+    for (int i = 0; static_cast<unsigned>(i) < data.size(); i++) memory.write(i + orgAddress, data[i] & 0xff);
 }
 
 
@@ -96,13 +118,13 @@ void Virtual_ZX128::generate_audio_chunk(ostringstream &AUDIOSTREAM, const uint6
             if (cpu.getPC() == bpReload && cpu.getPC() != prevPC) {
                 vector<char> data = currentTune->reload_data(playMode);
                 for (int j = 0; static_cast<unsigned>(j) < data.size(); j++)
-                    memory[j + currentTune->engineSize + currentTune->orgAddress] = data[j] & 0xff;
+                    memory.write(j + currentTune->engineSize + currentTune->orgAddress, data[j] & 0xff);
 
                 if (playMode > 2 && currentTune->musicdataBinary.symbols.count("loop_point_patch")) {
                     int64_t lp = currentTune->musicdataBinary.symbols.at(currentTune->config.seqLoopLabel);
                     int64_t lpPatchAddr = currentTune->musicdataBinary.symbols.at("loop_point_patch");
-                    memory[lpPatchAddr] = lp & 0xff;
-                    memory[lpPatchAddr + 1] = (lp>>8) & 0xff;
+                    memory.write(lpPatchAddr, lp & 0xff);
+                    memory.write(lpPatchAddr + 1, (lp>>8) & 0xff);
                 }
             }
 

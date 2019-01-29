@@ -6,6 +6,8 @@
 
 #include "z80.h"
 
+#include "memory.h"
+
 using std::array;
 using std::cout;
 using std::setfill;
@@ -15,7 +17,7 @@ using std::dec;
 using std::endl;
 using std::boolalpha;
 
-z80cpu::z80cpu(std::array<int, 0x10000> *mem, Z80Type z80type): memory(mem) {
+z80cpu::z80cpu(Z80Memory *mem, Z80Type z80type): memory(mem) {
     cpuType = z80type;
     inputPorts.fill(0);
     inputPortsShort.fill(0);
@@ -98,14 +100,14 @@ const std::array<unsigned, 256> z80cpu::instructionTimingsED = {{
 
 
 unsigned z80cpu::get_instruction_timing(int instructionPointer) noexcept {
-    int instruction = memory->at(instructionPointer);
+    int instruction = memory->read(instructionPointer);
 
     if (instruction == 0xcb) {
         return 8;
     }
     if (instruction == 0xeb) {
         instructionPointer = (instructionPointer + 1) & 0xffff;
-        instruction = memory->at(instructionPointer);
+        instruction = memory->read(instructionPointer);
         unsigned cycles = 4;
         if (instruction == 0xb0 || instruction == 0xb1 || instruction == 0xb8 || instruction == 0xb9) {
             if (regB | regC) cycles += 5;
@@ -118,12 +120,12 @@ unsigned z80cpu::get_instruction_timing(int instructionPointer) noexcept {
         unsigned cycles = 0;
         do {
             ++instructionPointer;
-            instruction = memory->at(instructionPointer);
+            instruction = memory->read(instructionPointer);
             cycles += 4;
         } while (instructionPointer >= 0xffff && (instruction == 0xdd || instruction == 0xfd));
         if (instruction == 0xcb) {          // ddcb/fdcb prefix
             instructionPointer = (instructionPointer + 1) & 0xffff;
-            instruction = memory->at(instructionPointer);
+            instruction = memory->read(instructionPointer);
             if (instruction < 0x40 || instruction > 0x7f) return cycles + 19;
             return cycles + 16;
         }
@@ -240,8 +242,8 @@ unsigned z80cpu::acknowledge_interrupt_and_get_timing() noexcept {
 
 void z80cpu::do_interrupt() noexcept {
     regSP = (regSP - 2) & 0xffff;
-    memory->at(regSP) = regPC & 0xff;
-    memory->at((regSP + 1) & 0xffff) = (regPC & 0xff00) >> 8;
+    memory->write(regSP, regPC & 0xff);
+    memory->write((regSP + 1) & 0xffff, (regPC & 0xff00) >> 8);
 
     if (interruptTypeRequested == Z80InterruptType::NMI) {
         regPC = 0x66;
@@ -253,7 +255,7 @@ void z80cpu::do_interrupt() noexcept {
             regMEMPTR = regPC;
         } else {
             regMEMPTR = (regI << 8) | 0xff;
-            regPC = (memory->at(regMEMPTR) << 8) | memory->at(regMEMPTR);
+            regPC = (memory->read(regMEMPTR) << 8) | memory->read(regMEMPTR);
             regMEMPTR = regPC;
         }
     }
@@ -271,7 +273,7 @@ void z80cpu::execute_cycle() noexcept {
     regR = ((regR & 0x80) | ((regR & 0x7f) + 1));
 
     if (interruptTypeAcknowledged == Z80InterruptType::NONE) {
-        cpu_instructions[(memory->at(regPC)) & 0xff](this);
+        cpu_instructions[(memory->read(regPC)) & 0xff](this);
     } else {
         do_interrupt();
     }
@@ -313,28 +315,28 @@ void z80cpu::execute_debug() {
     instructionCycles = get_instruction_timing(regPC);
 
     cout << hex << "at " << setfill('0') << setw(4) << regPC;
-    cout << " exec " << setfill('0') << setw(2) << memory->at(regPC);
+    cout << " exec " << setfill('0') << setw(2) << memory->read(regPC);
 
-    if ((memory->at(regPC) == 0xed) | (memory->at(regPC) == 0xcb)) cout << memory->at((regPC + 1) & 0xffff);
-    if ((memory->at(regPC) == 0xdd) | (memory->at(regPC) == 0xfd)) {
-        if (memory->at((regPC + 1) & 0xffff) == 0xcb) {
-            cout << "cb" << setfill('0') << setw(2) << memory->at((regPC + 2) & 0xffff)
-            << memory->at((regPC + 3) & 0xffff);
+    if ((memory->read(regPC) == 0xed) | (memory->read(regPC) == 0xcb)) cout << memory->read((regPC + 1) & 0xffff);
+    if ((memory->read(regPC) == 0xdd) | (memory->read(regPC) == 0xfd)) {
+        if (memory->read((regPC + 1) & 0xffff) == 0xcb) {
+            cout << "cb" << setfill('0') << setw(2) << memory->read((regPC + 2) & 0xffff)
+            << memory->read((regPC + 3) & 0xffff);
         } else {
             int i = 1;
 
-            while ((memory->at((regPC + i) & 0xffff) == 0xdd) | (memory->at((regPC + i) & 0xffff) == 0xfd)) {
-                cout << setfill('0') << setw(2) << memory->at((regPC + i) & 0xffff);
+            while ((memory->read((regPC + i) & 0xffff) == 0xdd) | (memory->read((regPC + i) & 0xffff) == 0xfd)) {
+                cout << setfill('0') << setw(2) << memory->read((regPC + i) & 0xffff);
                 i++;
             }
 
-            cout << setfill('0') << setw(2) << memory->at((regPC + i) & 0xffff);
+            cout << setfill('0') << setw(2) << memory->read((regPC + i) & 0xffff);
         }
     }
 
     regR = ((regR & 0x80) | ((regR & 0x7f) + 1));
 
-    cpu_instructions[static_cast<unsigned>(memory->at(regPC))](this);
+    cpu_instructions[static_cast<unsigned>(memory->read(regPC))](this);
 
     cout << dec << ", ticks: " << instructionCycles << hex << endl;
 

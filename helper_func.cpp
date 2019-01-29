@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
-#include <random>
 
 #include "helper_func.h"
 
@@ -42,26 +41,6 @@ string numToStr(const int64_t &num, const int &padding, const bool &hexFormat) {
     }
 
     return convert.str();
-}
-
-// generate random data via el cheapo xorshift* implementation
-vector<unsigned> generate_random_data(unsigned amount) {
-    vector<unsigned> randomData;
-
-    uint64_t state = std::random_device()();
-    uint64_t x;
-
-    for (unsigned i = 0; i < amount; i++) {
-        x = state;
-        x ^= x >> 12;
-        x ^= x << 25;
-        x ^= x >> 27;
-        state = x;
-        x *= 0x2545F4914F6CDD1D;
-        randomData.push_back(static_cast<unsigned>(x >> 32));
-    }
-
-    return randomData;
 }
 
 

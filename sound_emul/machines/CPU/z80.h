@@ -6,6 +6,7 @@
 #include <functional>
 #include <array>
 
+class Z80Memory;
 
 enum class Z80Type {NMOS, CMOS, BM1};
 enum class Z80InterruptType {NONE, NMI, REGULAR};
@@ -28,7 +29,7 @@ class z80cpu {
     void request_non_maskable_interrupt() noexcept;
     void request_maskable_interrupt() noexcept;
 
-    z80cpu(std::array<int, 0x10000> *mem, Z80Type z80type);
+    z80cpu(Z80Memory *mem, Z80Type z80type);
     z80cpu(const z80cpu &) = delete;
     z80cpu& operator=(const z80cpu &) = delete;
     z80cpu(z80cpu &&) = delete;
@@ -36,7 +37,7 @@ class z80cpu {
     ~z80cpu() = default;
 
  private:
-    std::array<int, 0x10000> *memory;
+    Z80Memory *memory;
     unsigned instructionCycles;
 
     Z80Type cpuType;

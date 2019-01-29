@@ -6,11 +6,11 @@
 #include <vector>
 #include "vm.h"
 #include "CPU/z80.h"
-
+#include "CPU/memory.h"
 
 class Virtual_ZX128 : public Virtual_Machine {
  public:
-    std::array<int, 0x10000> memory;
+    Z80Memory memory;
 
     void init(Work_Tune *tune = nullptr) override;
     void load_binary(char *code, const int &codeSize, const int &startAddress) override;

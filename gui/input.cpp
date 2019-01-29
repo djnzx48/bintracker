@@ -1742,7 +1742,8 @@ void Main_Window::randomize_selection() {
         mdCommand *cmd = status.get_current_block_pointer()->columns[col].command;
 
         if (!cmd->isBlkReference && !cmd->mdCmdAuto && !cmd->mdCmdForceString) {
-            vector<unsigned> randomData = generate_random_data(status.selectionRowLast - status.selectionRowFirst + 1);
+            vector<unsigned> randomData (status.selectionRowLast - status.selectionRowFirst + 1);
+            generate_random_data(randomData.begin(), randomData.end());
             unsigned row = status.selectionRowFirst;
 
             for (auto&& it : randomData) {
