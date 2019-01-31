@@ -3,10 +3,16 @@
 #ifndef SOUND_EMUL_MACHINES_ZXSPECTRUM128_H_
 #define SOUND_EMUL_MACHINES_ZXSPECTRUM128_H_
 
+#include <memory>
 #include <vector>
 #include "vm.h"
 #include "CPU/z80.h"
 #include "CPU/memory.h"
+
+extern "C"
+{
+#include "AY/ayumi.h"
+}
 
 class Virtual_ZX128 : public Virtual_Machine {
  public:
@@ -27,9 +33,9 @@ class Virtual_ZX128 : public Virtual_Machine {
  private:
     z80cpu cpu;
     Work_Tune *currentTune;
+    std::unique_ptr<ayumi> ay;
     bool prgmIsInitialized;
     bool prgmHasFinished;
-    int64_t previousSample;
     int bpInit;
     int bpExit;
     int bpReload;

@@ -18,6 +18,8 @@ class z80cpu {
     std::array<int8_t, 0x10000> outputPorts;
     std::array<int8_t, 0x100> outputPortsShort;
 
+    bool justWroteToAy;
+
     void reset() noexcept;
 
     void setPC(int startAddress) noexcept;

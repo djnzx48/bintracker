@@ -24,6 +24,8 @@ z80cpu::z80cpu(Z80Memory *mem, Z80Type z80type): memory(mem) {
     outputPorts.fill(0);
     outputPortsShort.fill(0);
 
+    justWroteToAy = false;
+
     reset();
 }
 

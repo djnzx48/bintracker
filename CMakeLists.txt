@@ -79,6 +79,7 @@ set(SOURCES data_as/data_as.cpp
     sound_emul/machines/zxspectrum128.cpp
     sound_emul/machines/CPU/z80.cpp sound_emul/machines/CPU/z80instructions.cpp
     sound_emul/machines/CPU/memory.cpp
+    sound_emul/machines/AY/ayumi.c
     bintracker.cpp helper_func.cpp)
 
 if(APPLE)

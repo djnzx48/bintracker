@@ -720,12 +720,37 @@ void z80cpu::adx_a_n() noexcept {
 // block Dx
 ////////////////////////////////////////////////////////////////////////////////
 
-void z80cpu::out_atn_a() noexcept {
+void z80cpu::out_atn_a() noexcept
+{
     regMEMPTR = (memory->read((regPC + 1) & 0xffff) + 1) & 0xff;
     if (cpuType != Z80Type::BM1) regMEMPTR |= (regA * 0x100);
 
-    outputPorts[memory->read((regPC + 1) & 0xffff) + (regA << 8)] = regA;
-    outputPortsShort[memory->read((regPC + 1) & 0xffff)] = regA;
+    int n = memory->read((regPC + 1) & 0xffff);
+    int port = n + (regA << 8);
+
+    // check for AY (another nasty hack.)
+    if ((port & 0x8000) && !(port & 0x0002))
+    {
+        if (port & 0x4000) // reg select
+        {
+            port = 0xfffd;
+        }
+        else // data
+        {
+            port = 0xbffd;
+            justWroteToAy = true;
+        }
+    }
+
+    // check for memory paging
+    if (!(port & 0x8000) && !(port & 0x0002))
+    {
+        memory->bank_switch(regA);
+    }
+
+    outputPorts[port] = regA;
+    outputPortsShort[n] = regA;
+
     regPC += 2;
 }
 
@@ -938,8 +963,31 @@ void z80cpu::out_atc_r8() noexcept {
         regDummy = 0xff;
     }
 
-    outputPorts[regC + (regB << 8)] = *regPtr[(memory->read(regPC) >> 3) & 7];
-    outputPortsShort[regC] = *regPtr[(memory->read(regPC) >> 3) & 7];
+    int outval {*regPtr[(memory->read(regPC) >> 3) & 7]};
+    int port {regC + (regB << 8)};
+
+    // check for AY (another nasty hack.)
+    if ((port & 0x8000) && !(port & 0x0002))
+    {
+        if (port & 0x4000) // reg select
+        {
+            port = 0xfffd;
+        }
+        else // data
+        {
+            port = 0xbffd;
+            justWroteToAy = true;
+        }
+    }
+
+    outputPorts[port] = outval;
+    outputPortsShort[regC] = outval;
+
+    // check for memory paging
+    if (!(port & 0x8000) && !(port & 0x0002))
+    {
+        memory->bank_switch(outval);
+    }
 
     regPC++;
 }

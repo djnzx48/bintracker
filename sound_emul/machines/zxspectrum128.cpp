@@ -15,8 +15,15 @@ using std::ifstream;
 using std::cout;
 
 Virtual_ZX128::Virtual_ZX128()
-    :memory {Z80Memory::Configuration::Spectrum128}, cpu {&memory, Z80Type::NMOS}
+    :memory {Z80Memory::Configuration::Spectrum128}, cpu {&memory, Z80Type::NMOS},
+    ay {std::make_unique<ayumi>()}
 {
+    ayumi_configure(ay.get(), 0, 1773400, 45600); // change 0 to 1 for YM
+
+    ayumi_set_pan(ay.get(), 0, 0.5, 0);
+    ayumi_set_pan(ay.get(), 1, 0.5, 0);
+    ayumi_set_pan(ay.get(), 2, 0.5, 0);
+
     cpu.inputPortsShort[0xfe] = 0xff;   // return no_key_down on keyboard checks
 
     ifstream ROMFILE("resources/roms/zxspectrum128.rom", ios::binary);
@@ -53,7 +60,6 @@ Virtual_ZX128::Virtual_ZX128()
 
     prgmIsInitialized = false;
     prgmHasFinished = true;
-    previousSample = 0;
     bpInit = 0;
     bpExit = 0;
     bpReload = 0;
@@ -75,7 +81,6 @@ void Virtual_ZX128::init_prgm() {
     cpu.reset();
     cpu.setPC(bpInit);
 
-    previousSample = 0;
     prgmIsInitialized = true;
     prgmHasFinished = false;
 }
@@ -108,10 +113,11 @@ void Virtual_ZX128::generate_audio_chunk(ostringstream &AUDIOSTREAM, const uint6
                                         const unsigned &playMode) {
     if (!prgmIsInitialized) init_prgm();
 
-    int64_t internalSample = 0;
     unsigned internalSampleCount = 0;
     uint64_t externalSampleCount = 0;
     int prevPC = cpu.getPC();
+
+    // beeper disabled for now
 
     while ((cpu.getPC() != bpExit) && (externalSampleCount < audioChunkSize)) {
         for (int i = 0; (i < 8) && (cpu.getPC() != bpExit); ++i) {
@@ -132,22 +138,73 @@ void Virtual_ZX128::generate_audio_chunk(ostringstream &AUDIOSTREAM, const uint6
             cpu.execute_cycle();
         }
 
-        internalSample += ((cpu.outputPortsShort[0xfe] & 0x10) + ((cpu.outputPortsShort[0xfe] & 0x8) >> 3));
+        // TODO this should be in a separate AY sourcefile.
+        enum class AyReg
+        {
+            ChanAFinePitch,
+            ChanACoarsePitch,
+            ChanBFinePitch,
+            ChanBCoarsePitch,
+            ChanCFinePitch,
+            ChanCCoarsePitch,
+            NoisePitch,
+            Mixer,
+            ChanAVolume,
+            ChanBVolume,
+            ChanCVolume,
+            EnvFinePitch,
+            EnvCoarsePitch,
+            EnvShape,
+            IoPortA,
+            IoPortB
+        };
+
+        if (cpu.justWroteToAy)
+        {
+            cpu.justWroteToAy = false;
+
+            int portval = cpu.outputPorts[0xbffd];
+            auto currentReg = static_cast<AyReg>(cpu.outputPorts[0xfffd] & 0x0f); // actually high 4 bits are ignored but don't worry for now.
+
+            switch (currentReg)
+            {
+                case AyReg::Mixer:
+                    ayumi_set_mixer(ay.get(), 0, portval & 1, (portval >> 3) & 1, 0); // why does this lib make you specify envelope???
+                    ayumi_set_mixer(ay.get(), 1, (portval >> 1) & 1, (portval >> 4) & 1, 0); // oh well, we're not using it anyway
+                    ayumi_set_mixer(ay.get(), 2, (portval >> 2) & 1, (portval >> 5) & 1, 0);
+
+                    break;
+                case AyReg::ChanAVolume:
+                    ayumi_set_volume(ay.get(), 0, portval & 0xf);
+
+                    break;
+                case AyReg::ChanBVolume:
+                    ayumi_set_volume(ay.get(), 1, portval & 0xf);
+
+                    break;
+                case AyReg::ChanCVolume:
+                    ayumi_set_volume(ay.get(), 2, portval & 0xf);
+
+                    break;
+                // don't care about others right now.
+            }
+        }
+
         internalSampleCount++;
 
         if (internalSampleCount == 11) {
-            internalSample = static_cast<int64_t>((((internalSample - 0x0f) << 4) / 11) * 8 * 15);
+            // render the sample
 
-            // simple LP filter
-            internalSample = previousSample + static_cast<int64_t>(((internalSample - previousSample) << 3) / 10);
-            previousSample = internalSample;
+            ayumi_process(ay.get());
+            ayumi_remove_dc(ay.get());
+
+            int16_t internalSample = ay.get()->left * 65535; // scale it up, assume value in [0, 1]
 
             // duplicate to stereo
             AUDIOSTREAM << static_cast<char>(internalSample & 0xff) << static_cast<char>((internalSample >> 8) & 0xff)
                         << static_cast<char>(internalSample & 0xff) << static_cast<char>((internalSample >> 8) & 0xff);
 
             internalSampleCount = 0;
-            internalSample = 0;
             externalSampleCount++;
         }
     }
